@@ -25,6 +25,16 @@
     <!-- Main content container -->
     <div class="relative min-h-screen flex flex-col items-center justify-start p-4 sm:p-6 md:p-8 z-10">
         <div class="w-full max-w-7xl mx-auto">
+            <!-- Back Button -->
+            <div class="mb-4">
+                <a href="#" onclick="history.back(); return false;" class="inline-flex items-center px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    Back
+                </a>
+            </div>
+            
             <header class="text-center mb-8">
                 <!-- Responsive header text -->
                 <h1 class="text-4xl sm:text-6xl md:text-7xl font-bold tracking-wider text-white uppercase drop-shadow-lg">Unit Status</h1>
