@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STFD News</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Use the Inter font family */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Simple animation for the loading spinner */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #09f;
+            animation: spin 1s ease infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <!-- Main Container -->
+    <div class="container mx-auto p-4">
+        
+        <!-- Header Section -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-900">STFD NEWS</h1>
+        </header>
+
+        <!-- News Feed Container -->
+        <main id="news-feed" class="grid gap-6 grid-cols-1">
+            <!-- News items will be dynamically inserted here -->
+        </main>
+        
+        <!-- Loading State -->
+        <div id="loading" class="flex justify-center items-center py-20">
+            <div class="spinner"></div>
+            <p class="ml-4 text-lg text-gray-600">Fetching latest news...</p>
+        </div>
+        
+        <!-- Error State -->
+        <div id="error" class="hidden text-center py-20">
+             <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative" role="alert">
+                <strong class="font-bold">Oops!</strong>
+                <span class="block sm:inline">Something went wrong while fetching the news. Please try again later.</span>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // The URL for the Google Sheet published as a CSV file.
+            const googleSheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR60gVCujM1LPmtNNY4zhmIZK7POkotqx4meDzt4rdjz_mT3kwqnn5YTn0MFF9adxYgqZcWBDMADuze/pub?gid=0&single=true&output=csv';
+
+            const feedContainer = document.getElementById('news-feed');
+            const loadingIndicator = document.getElementById('loading');
+            const errorIndicator = document.getElementById('error');
+            
+            /**
+             * A more robust CSV parser that correctly handles quoted fields,
+             * commas within fields, and escaped quotes. This prevents the
+             * "Invalid array length" error.
+             * @param {string} text - The CSV text to parse.
+             * @returns {Array<Object>} An array of objects representing the rows.
+             */
+            function parseCSV(text) {
+                const lines = text.trim().split(/\r?\n/);
+                if (lines.length < 2) return [];
+
+                // Use the first line as headers
+                const headers = lines.shift().split(',').map(h => h.trim());
+                const rows = [];
+
+                for (const line of lines) {
+                    if (line.trim() === '') continue;
+
+                    const values = [];
+                    let currentField = '';
+                    let inQuotes = false;
+
+                    for (let i = 0; i < line.length; i++) {
+                        const char = line[i];
+
+                        if (char === '"') {
+                            // Handle escaped quotes ("")
+                            if (inQuotes && line[i + 1] === '"') {
+                                currentField += '"';
+                                i++; // Skip the next quote
+                            } else {
+                                inQuotes = !inQuotes;
+                            }
+                        } else if (char === ',' && !inQuotes) {
+                            // A comma outside of quotes signals the end of a field
+                            values.push(currentField);
+                            currentField = '';
+                        } else {
+                            // Append the character to the current field
+                            currentField += char;
+                        }
+                    }
+                    // Add the final field after the loop
+                    values.push(currentField);
+                    
+                    // Create an object from the headers and values
+                    if (values.length === headers.length) {
+                        const rowObject = {};
+                        headers.forEach((header, index) => {
+                            // Trim whitespace and remove quotes that Google Sheets sometimes adds
+                            const cleanedValue = (values[index] || '').trim().replace(/^"|"$/g, '');
+                            rowObject[header] = cleanedValue;
+                        });
+                        rows.push(rowObject);
+                    } else {
+                         console.warn("Skipping mismatched row:", { line, values });
+                    }
+                }
+                return rows;
+            }
+
+            /**
+             * Creates and appends a news card to the feed container.
+             * @param {Object} item - The news item data.
+             */
+            function createNewsCard(item) {
+                const card = document.createElement('div');
+                card.className = 'bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 flex flex-col';
+
+                // Safely access properties, providing fallbacks for missing data.
+                const title = item['Title *'] || 'No Title';
+                const description = item['Description'] || 'No description available.';
+                const location = item['Location'] || 'N/A';
+                const appliesTo = item['Applies To'] || 'Everyone';
+                const postedBy = item['Posted by'] || 'Anonymous';
+                const postDateStr = item['Date/Time to Post'];
+
+                let postDateDisplay = '';
+                // Only format and display if a date is present
+                if (postDateStr) {
+                    try {
+                        const date = new Date(postDateStr);
+                        // Check if the date is valid before trying to format it
+                        if (!isNaN(date.getTime())) {
+                            postDateDisplay = date.toLocaleDateString('en-US', {
+                                year: 'numeric', month: 'short', day: 'numeric'
+                            });
+                        }
+                    } catch (e) {
+                       // Silently fail if date is invalid, so nothing is displayed
+                       console.warn(`Invalid date format for item: "${title}"`, postDateStr);
+                    }
+                }
+
+                card.innerHTML = `
+                    <div class="flex-grow">
+                        <h2 class="text-xl font-bold mb-2 text-gray-900">${title}</h2>
+                        <p class="text-gray-700 mb-4">${description}</p>
+                    </div>
+                    <div class="mt-auto pt-4 border-t border-gray-200">
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            <span class="inline-block bg-blue-100 text-blue-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">
+                                Location: ${location}
+                            </span>
+                            <span class="inline-block bg-green-100 text-green-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">
+                                Applies To: ${appliesTo}
+                            </span>
+                        </div>
+                        <div class="text-sm text-gray-500 flex justify-between items-center">
+                            <span>Posted by: <strong>${postedBy}</strong></span>
+                            ${postDateDisplay ? `<span>${postDateDisplay}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+                feedContainer.appendChild(card);
+            }
+
+            // Fetch the data from the Google Sheet.
+            fetch(googleSheetUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
+                .then(csvText => {
+                    const allData = parseCSV(csvText);
+                    const now = new Date();
+                    
+                    // Filter the news items based on posting and removal dates
+                    const data = allData.filter(item => {
+                        const postDateStr = item['Date/Time to Post'];
+                        const removeDateStr = item['Date to Remove'];
+                        
+                        // Check for the title to ensure it's a valid row
+                        if (!item['Title *']) {
+                            return false;
+                        }
+
+                        // If 'Date/Time to Post' is specified, check if it's in the past
+                        if (postDateStr) {
+                            try {
+                                const postDate = new Date(postDateStr);
+                                if (!isNaN(postDate.getTime()) && postDate > now) {
+                                    return false; // Don't show future posts
+                                }
+                            } catch (e) { /* Ignore invalid dates */ }
+                        }
+
+                        // If 'Date to Remove' is specified, check if it's in the future
+                        if (removeDateStr) {
+                            try {
+                                const removeDate = new Date(removeDateStr);
+                                 if (!isNaN(removeDate.getTime()) && removeDate <= now) {
+                                    return false; // Don't show posts that should be removed
+                                }
+                            } catch (e) { /* Ignore invalid dates */ }
+                        }
+                        
+                        return true; // Keep the item
+                    });
+
+                    // Sort the data by post date in descending order (newest first)
+                    data.sort((a, b) => {
+                        // Create date objects for comparison, defaulting to a very old date if missing
+                        const dateA = a['Date/Time to Post'] ? new Date(a['Date/Time to Post']) : new Date(0);
+                        const dateB = b['Date/Time to Post'] ? new Date(b['Date/Time to Post']) : new Date(0);
+                        // Subtracting the dates sorts them; b - a gives descending order
+                        return dateB - dateA;
+                    });
+                    
+                    // Hide the loading indicator
+                    loadingIndicator.style.display = 'none';
+                    
+                    if (data.length > 0) {
+                         // Create a card for each item in the data
+                        data.forEach(createNewsCard);
+                    } else {
+                        feedContainer.innerHTML = '<p class="text-center col-span-full">No current news items found.</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching or parsing data:', error);
+                    // Hide loading indicator and show error message
+                    loadingIndicator.style.display = 'none';
+                    errorIndicator.style.display = 'block';
+                });
+        });
+    </script>
+</body>
+</html>
+
+
