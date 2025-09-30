@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upcoming Events</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FullCalendar Core -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
+    <!-- ICAL.js: The parser for the iCalendar plugin. This must be included BEFORE the iCalendar plugin. -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ical.js/1.4.0/ical.min.js"></script>
+    <!-- FullCalendar iCalendar Plugin -->
+    <script src='https://cdn.jsdelivr.net/npm/@fullcalendar/icalendar@6.1.8/index.global.min.js'></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom styles for the calendar */
+        #calendar {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        /* Style for individual event cards */
+        .fc-event {
+            cursor: pointer;
+            border: none !important;
+            background-color: white !important;
+            margin-bottom: 1rem !important;
+            border-radius: 0.75rem !important;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            padding: 1.5rem !important;
+        }
+        .fc-event:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .fc-event-main {
+            color: #1f2937 !important;
+        }
+        .fc-toolbar {
+            display: none !important; /* Hide the default calendar header */
+        }
+        .fc-view, .fc-view > table {
+            border: none !important;
+        }
+        .fc-daygrid-day-frame {
+            padding: 0;
+        }
+        .fc-daygrid-day-events {
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+
+    <div class="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        <!-- Header Section -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-extrabold text-gray-800 tracking-tight sm:text-4xl">
+                STFD Upcoming Events
+            </h1>
+        </header>
+
+        <!-- Calendar will be rendered here -->
+        <div id='loading' class="text-center text-gray-500">Loading events...</div>
+        <div id="calendar" class="opacity-0 transition-opacity duration-500"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const calendarEl = document.getElementById('calendar');
+            const loadingEl = document.getElementById('loading');
+            
+            // The public iCal URL from Google Calendar
+            const calendarUrl = 'https://calendar.google.com/calendar/ical/3m020nl2nsv2dslfon9jc723v4hbcm55%40import.calendar.google.com/public/basic.ics';
+            
+            // We use a CORS proxy to bypass browser security restrictions on fetching data from another domain.
+            const proxyUrl = 'https://api.allorigins.win/raw?url=';
+            const icalUrl = proxyUrl + encodeURIComponent(calendarUrl);
+
+
+            const calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'listYear', // Display events in a list format for the year
+                headerToolbar: false, // Hide the default header
+                height: 'auto', // Auto height based on content
+                validRange: {
+                    start: new Date() // Ensures only today and future dates are shown
+                },
+                events: {
+                    url: icalUrl,
+                    format: 'ics'
+                },
+                // Customize how each event is rendered
+                eventContent: function(arg) {
+                    const event = arg.event;
+                    const eventDate = event.start.toLocaleDateString(undefined, {
+                        weekday: 'long', month: 'long', day: 'numeric'
+                    });
+                    const eventTime = event.start.toLocaleTimeString(undefined, {
+                        hour: 'numeric', minute: '2-digit', hour12: true
+                    });
+
+                    // Create the card structure using Tailwind CSS classes
+                    let cardHtml = `
+                        <div class="flex items-center space-x-4">
+                            <div class="flex-shrink-0 bg-blue-500 text-white w-16 h-16 rounded-lg flex flex-col items-center justify-center shadow-md">
+                                <span class="text-sm font-semibold">${event.start.toLocaleString('default', { month: 'short' }).toUpperCase()}</span>
+                                <span class="text-2xl font-bold">${event.start.getDate()}</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-lg font-bold text-gray-900 truncate">${event.title}</p>
+                                <p class="text-sm text-gray-500">${eventDate}</p>
+                                ${!event.allDay ? `<p class="text-sm font-medium text-blue-600">${eventTime}</p>` : ''}
+                            </div>
+                        </div>
+                    `;
+                    return { html: cardHtml };
+                },
+                // Handle loading state
+                loading: function(isLoading) {
+                    if (isLoading) {
+                        loadingEl.style.display = 'block';
+                        calendarEl.style.opacity = '0';
+                    } else {
+                        loadingEl.style.display = 'none';
+                        calendarEl.style.opacity = '1';
+                    }
+                }
+            });
+
+            calendar.render();
+        });
+    </script>
+
+</body>
+</html>
+
+
+
+
